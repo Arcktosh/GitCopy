@@ -14,6 +14,7 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.commands.registerCommand('gitCopy.copyRepository', (resource?: vscode.Uri) => runCopy(context, resource, 'copy')),
         vscode.commands.registerCommand('gitCopy.copyRepositoryClean', (resource?: vscode.Uri) => runCopy(context, resource, 'clean')),
         vscode.commands.registerCommand('gitCopy.previewRepositoryCopy', (resource?: vscode.Uri) => runCopy(context, resource, 'preview')),
+        vscode.commands.registerCommand('gitCopy.copyWorkspaceRepository', () => runCopy(context, undefined, 'copy')),
         vscode.commands.registerCommand('gitCopy.openSettings', () => vscode.commands.executeCommand('workbench.action.openSettings', '@ext:arcktosh.gitcopy'))
     );
 }
