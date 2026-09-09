@@ -8,20 +8,12 @@ Rather than implementing `.gitignore` parsing itself, GitCopy asks Git for the e
 git ls-files -z --cached --others --exclude-standard
 ```
 
-This means GitCopy respects:
-
-- tracked files
-- root and nested `.gitignore` files
-- negation rules such as `!important.log`
-- `.git/info/exclude`
-- global Git ignore configuration
-- Git's own interpretation of ignored files
-
-The `.git` directory itself is not copied.
+This means GitCopy respects tracked files, root and nested `.gitignore` files, negation rules such as `!important.log`, `.git/info/exclude`, global Git ignore configuration, and Git's own interpretation of ignored files. The `.git` directory itself is not copied.
 
 ## Components
 
 - **GitCopy CLI** - the .NET 8 copy engine.
+- **Windows Explorer integration** - optional per-user context-menu entries for folders and folder backgrounds.
 - **VS Code extension** - commands, Explorer integration, destination selection, progress, and settings around the same engine.
 
 ## Requirements
@@ -42,23 +34,15 @@ dotnet build -c Release
 
 Release publishing uses .NET Native AOT with size optimization. The resulting `GitCopy.exe` is self-contained and does not require the .NET runtime to be installed on the target machine.
 
-For 64-bit Windows:
-
 ```powershell
 dotnet publish -c Release -r win-x64
 ```
 
-The executable will be produced under:
+The executable is produced under:
 
 ```text
 bin\Release\net8.0\win-x64\publish\GitCopy.exe
 ```
-
-The project enables:
-
-- `PublishAot=true`
-- `OptimizationPreference=Size`
-- invariant globalization to avoid shipping globalization data that GitCopy does not use
 
 ## CLI usage
 
@@ -69,30 +53,51 @@ GitCopy <source> <destination> [options]
 ### Options
 
 ```text
---dry-run    Display the files that would be copied without writing them
---clean      Delete the destination before copying
---help, -h   Show help
+--dry-run                 Display the files that would be copied without writing them
+--clean                   Delete the destination before copying
+--install-context-menu    Install per-user Windows Explorer context-menu integration
+--uninstall-context-menu  Remove per-user Windows Explorer context-menu integration
+--help, -h                Show help
 ```
 
 ### Examples
 
-Copy a repository working tree:
-
 ```powershell
 GitCopy C:\Repos\RepoName D:\Copies\RepoName
-```
-
-Recreate the destination first:
-
-```powershell
 GitCopy C:\Repos\RepoName D:\Copies\RepoName --clean
-```
-
-Preview the copy:
-
-```powershell
 GitCopy C:\Repos\RepoName D:\Copies\RepoName --dry-run
 ```
+
+## Windows Explorer integration
+
+On Windows, install the shell integration once:
+
+```powershell
+GitCopy.exe --install-context-menu
+```
+
+GitCopy copies the current executable to:
+
+```text
+%LOCALAPPDATA%\GitCopy\GitCopy.exe
+```
+
+and registers per-user Explorer verbs under `HKCU`, so administrator rights are not required.
+
+After installation, **Copy with GitCopy...** is available when:
+
+- right-clicking a folder; or
+- right-clicking empty space inside a folder.
+
+The command opens a destination-folder picker and copies the selected Git repository into `<destination>/<repository-name>`. On Windows 11 the classic shell entry may appear under **Show more options**.
+
+Remove the menu entries with:
+
+```powershell
+GitCopy.exe --uninstall-context-menu
+```
+
+The cached executable under `%LOCALAPPDATA%\GitCopy` is intentionally left in place so an uninstall never attempts to delete a running executable; it can be removed manually afterward.
 
 ## Visual Studio Code extension
 
@@ -101,7 +106,9 @@ The extension lives in [`vscode-extension`](vscode-extension) and exposes:
 - `GitCopy: Copy Repository`
 - `GitCopy: Copy Repository (Clean Destination)`
 - `GitCopy: Preview Repository Copy`
+- `GitCopy: Copy Workspace Repository`
 - a **GitCopy** submenu when right-clicking folders in the Explorer
+- **Copy Workspace Repository** when right-clicking empty space in the VS Code File Explorer
 
 For a packaged Windows VSIX, the build publishes the optimized `win-x64` Native AOT engine and bundles `GitCopy.exe` inside the extension. The extension invokes that executable rather than duplicating `.gitignore` parsing logic in TypeScript.
 
@@ -143,7 +150,7 @@ Files that cannot be copied because of I/O or access errors are reported individ
 ## Exit codes
 
 - `0` - success
-- `1` - invalid input, Git unavailable, or repository discovery/query failure
+- `1` - invalid input, Git unavailable, shell integration failure, or repository discovery/query failure
 - `2` - one or more files failed to copy
 
 ## License

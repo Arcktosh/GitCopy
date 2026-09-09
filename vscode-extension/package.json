@@ -16,21 +16,14 @@
 	"engines": {
 		"vscode": "^1.110.0"
 	},
-	"categories": [
-		"Other"
-	],
-	"keywords": [
-		"git",
-		"copy",
-		"repository",
-		"backup",
-		"gitignore"
-	],
+	"categories": ["Other"],
+	"keywords": ["git", "copy", "repository", "backup", "gitignore"],
 	"main": "./dist/extension.js",
 	"activationEvents": [
 		"onCommand:gitCopy.copyRepository",
 		"onCommand:gitCopy.copyRepositoryClean",
 		"onCommand:gitCopy.previewRepositoryCopy",
+		"onCommand:gitCopy.copyWorkspaceRepository",
 		"onCommand:gitCopy.openSettings"
 	],
 	"contributes": {
@@ -54,6 +47,12 @@
 				"icon": "$(preview)"
 			},
 			{
+				"command": "gitCopy.copyWorkspaceRepository",
+				"title": "Copy Workspace Repository",
+				"category": "GitCopy",
+				"icon": "$(repo-clone)"
+			},
+			{
 				"command": "gitCopy.openSettings",
 				"title": "Open Settings",
 				"category": "GitCopy",
@@ -72,6 +71,11 @@
 					"submenu": "gitCopy.explorer",
 					"when": "explorerResourceIsFolder && resourceScheme == file",
 					"group": "7_modification"
+				},
+				{
+					"command": "gitCopy.copyWorkspaceRepository",
+					"when": "explorerViewletFocus && !resourceSet",
+					"group": "2_workspace"
 				}
 			],
 			"gitCopy.explorer": [

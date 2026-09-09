@@ -7,10 +7,43 @@ internal static class Program
     {
         Console.OutputEncoding = Encoding.UTF8;
 
-        if (args.Length < 2 || args.Contains("--help", StringComparer.OrdinalIgnoreCase) || args.Contains("-h", StringComparer.OrdinalIgnoreCase))
+        if (args.Length == 0)
         {
             PrintUsage();
-            return args.Length < 2 ? 1 : 0;
+            return 1;
+        }
+
+        if (args.Contains("--help", StringComparer.OrdinalIgnoreCase) || args.Contains("-h", StringComparer.OrdinalIgnoreCase))
+        {
+            PrintUsage();
+            return 0;
+        }
+
+        if (args[0].Equals("--install-context-menu", StringComparison.OrdinalIgnoreCase))
+        {
+            return WindowsShellIntegration.Install();
+        }
+
+        if (args[0].Equals("--uninstall-context-menu", StringComparison.OrdinalIgnoreCase))
+        {
+            return WindowsShellIntegration.Uninstall();
+        }
+
+        if (args[0].Equals("--shell-copy", StringComparison.OrdinalIgnoreCase))
+        {
+            if (args.Length < 2)
+            {
+                Console.Error.WriteLine("--shell-copy requires a source directory.");
+                return 1;
+            }
+
+            return await RunShellCopy(args[1]);
+        }
+
+        if (args.Length < 2)
+        {
+            PrintUsage();
+            return 1;
         }
 
         string sourceArgument = Path.GetFullPath(args[0]);
@@ -29,6 +62,68 @@ internal static class Program
             PrintUsage();
             return 1;
         }
+
+        return await RunCopy(sourceArgument, destination, dryRun, clean);
+    }
+
+    private static async Task<int> RunShellCopy(string sourceArgument)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Console.Error.WriteLine("Windows Explorer integration is only available on Windows.");
+            return 1;
+        }
+
+        sourceArgument = Path.GetFullPath(sourceArgument);
+
+        if (!Directory.Exists(sourceArgument))
+        {
+            Console.Error.WriteLine("Source directory does not exist:");
+            Console.Error.WriteLine(sourceArgument);
+            return 1;
+        }
+
+        if (!await GitIsAvailable())
+        {
+            Console.Error.WriteLine("Git could not be found. Install Git for Windows and ensure git.exe is on PATH.");
+            return 1;
+        }
+
+        string? repositoryRoot = await GetRepositoryRoot(sourceArgument);
+        if (repositoryRoot is null)
+        {
+            Console.Error.WriteLine("The selected folder is not inside a Git repository:");
+            Console.Error.WriteLine(sourceArgument);
+            return 1;
+        }
+
+        string? destinationParent;
+        try
+        {
+            destinationParent = await WindowsShellIntegration.SelectDestinationParentAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Unable to open the destination picker: {ex.Message}");
+            return 1;
+        }
+
+        if (string.IsNullOrWhiteSpace(destinationParent))
+        {
+            return 0;
+        }
+
+        repositoryRoot = Path.GetFullPath(repositoryRoot);
+        string repositoryName = new DirectoryInfo(repositoryRoot).Name;
+        string destination = Path.Combine(destinationParent, repositoryName);
+
+        return await RunCopy(repositoryRoot, destination, dryRun: false, clean: false);
+    }
+
+    private static async Task<int> RunCopy(string sourceArgument, string destination, bool dryRun, bool clean)
+    {
+        sourceArgument = Path.GetFullPath(sourceArgument);
+        destination = Path.GetFullPath(destination);
 
         if (!Directory.Exists(sourceArgument))
         {
@@ -329,16 +424,21 @@ internal static class Program
 
             Usage:
               GitCopy <source> <destination> [options]
+              GitCopy --install-context-menu
+              GitCopy --uninstall-context-menu
 
             Options:
-              --dry-run    Display files without copying them
-              --clean      Delete the destination before copying
-              --help, -h   Show this help text
+              --dry-run                 Display files without copying them
+              --clean                   Delete the destination before copying
+              --install-context-menu    Install per-user Windows Explorer integration
+              --uninstall-context-menu  Remove per-user Windows Explorer integration
+              --help, -h                Show this help text
 
             Examples:
               GitCopy C:\Repos\RepoName D:\Copies\RepoName
               GitCopy C:\Repos\RepoName D:\Copies\RepoName --clean
               GitCopy C:\Repos\RepoName D:\Copies\RepoName --dry-run
+              GitCopy --install-context-menu
             """);
     }
 

@@ -11,9 +11,15 @@ Open the Command Palette and run:
 - `GitCopy: Copy Repository`
 - `GitCopy: Copy Repository (Clean Destination)`
 - `GitCopy: Preview Repository Copy`
+- `GitCopy: Copy Workspace Repository`
 - `GitCopy: Open Settings`
 
-You can also right-click a folder in the Explorer and use the **GitCopy** submenu.
+You can also:
+
+- right-click a folder in the Explorer and use the **GitCopy** submenu; or
+- right-click empty space in the File Explorer and choose **Copy Workspace Repository**.
+
+The empty-space command uses the current workspace folder. If the workspace contains multiple folders, GitCopy asks which workspace folder to copy.
 
 When no default destination root is configured, GitCopy asks you to select a parent destination folder and creates the copy under `<destination>/<repository-name>`.
 
