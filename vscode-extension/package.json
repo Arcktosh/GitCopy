@@ -2,7 +2,7 @@
 	"name": "gitcopy",
 	"displayName": "GitCopy",
 	"description": "Copy Git repositories from VS Code while respecting Git ignore rules.",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"publisher": "arcktosh",
 	"license": "MIT",
 	"repository": {
@@ -16,8 +16,16 @@
 	"engines": {
 		"vscode": "^1.110.0"
 	},
-	"categories": ["Other"],
-	"keywords": ["git", "copy", "repository", "backup", "gitignore"],
+	"categories": [
+		"Other"
+	],
+	"keywords": [
+		"git",
+		"copy",
+		"repository",
+		"backup",
+		"gitignore"
+	],
 	"main": "./dist/extension.js",
 	"activationEvents": [
 		"onCommand:gitCopy.copyRepository",
