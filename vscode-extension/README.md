@@ -40,11 +40,13 @@ npm install
 npm run compile
 ```
 
-Before running or packaging the extension with its bundled engine, publish GitCopy and copy the executable into `vscode-extension/bin/GitCopy.exe`:
+Before running or packaging the extension with its bundled engine, publish the optimized Native AOT GitCopy executable and copy it into `vscode-extension/bin/GitCopy.exe`:
 
 ```powershell
-dotnet publish ..\GitCopy.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o ..\artifacts\gitcopy\win-x64
+dotnet publish ..\GitCopy.csproj -c Release -r win-x64 -o ..\artifacts\gitcopy\win-x64
 New-Item -ItemType Directory -Force .\bin | Out-Null
 Copy-Item ..\artifacts\gitcopy\win-x64\GitCopy.exe .\bin\GitCopy.exe
 npm run package:vsix
 ```
+
+Native AOT keeps the bundled engine self-contained while avoiding the much larger managed self-contained runtime bundle. Source maps and development-only files are excluded from the packaged VSIX.

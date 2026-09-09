@@ -29,6 +29,7 @@ The `.git` directory itself is not copied.
 - Windows 10/11 or another platform supported by .NET 8 for the CLI
 - Git installed and available on `PATH`
 - .NET 8 SDK for building the CLI from source
+- Native AOT prerequisites for the target platform when publishing a release build
 - Node.js 22+ for building or packaging the VS Code extension
 
 ## Build the CLI
@@ -37,12 +38,14 @@ The `.git` directory itself is not copied.
 dotnet build -c Release
 ```
 
-## Publish a single Windows executable
+## Publish the optimized Windows executable
+
+Release publishing uses .NET Native AOT with size optimization. The resulting `GitCopy.exe` is self-contained and does not require the .NET runtime to be installed on the target machine.
 
 For 64-bit Windows:
 
 ```powershell
-dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+dotnet publish -c Release -r win-x64
 ```
 
 The executable will be produced under:
@@ -50,6 +53,12 @@ The executable will be produced under:
 ```text
 bin\Release\net8.0\win-x64\publish\GitCopy.exe
 ```
+
+The project enables:
+
+- `PublishAot=true`
+- `OptimizationPreference=Size`
+- invariant globalization to avoid shipping globalization data that GitCopy does not use
 
 ## CLI usage
 
@@ -94,7 +103,7 @@ The extension lives in [`vscode-extension`](vscode-extension) and exposes:
 - `GitCopy: Preview Repository Copy`
 - a **GitCopy** submenu when right-clicking folders in the Explorer
 
-For a packaged Windows VSIX, the build publishes the `win-x64` .NET engine and bundles `GitCopy.exe` inside the extension. The extension invokes that executable rather than duplicating `.gitignore` parsing logic in TypeScript.
+For a packaged Windows VSIX, the build publishes the optimized `win-x64` Native AOT engine and bundles `GitCopy.exe` inside the extension. The extension invokes that executable rather than duplicating `.gitignore` parsing logic in TypeScript.
 
 ### Build the extension
 
@@ -109,7 +118,7 @@ npm run compile
 From the repository root:
 
 ```powershell
-dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o artifacts\gitcopy\win-x64
+dotnet publish -c Release -r win-x64 -o artifacts\gitcopy\win-x64
 New-Item -ItemType Directory -Force vscode-extension\bin | Out-Null
 Copy-Item artifacts\gitcopy\win-x64\GitCopy.exe vscode-extension\bin\GitCopy.exe
 cd vscode-extension
@@ -117,7 +126,7 @@ npm install
 npm run package:vsix -- --out ..\artifacts\gitcopy-vscode.vsix
 ```
 
-The GitHub Actions build performs the same process and uploads both the standalone `GitCopy.exe` and packaged VSIX as artifacts.
+The VSIX excludes TypeScript source maps and development-only files. GitHub Actions performs the same process, reports the final executable and VSIX sizes, and uploads both artifacts.
 
 See [`vscode-extension/README.md`](vscode-extension/README.md) for extension settings and usage.
 

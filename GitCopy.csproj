@@ -8,6 +8,10 @@
     <AssemblyName>GitCopy</AssemblyName>
     <RootNamespace>GitCopy</RootNamespace>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <PublishAot>true</PublishAot>
+    <OptimizationPreference>Size</OptimizationPreference>
+    <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
 </Project>

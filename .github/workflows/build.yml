@@ -29,8 +29,8 @@ jobs:
       - name: Build .NET
         run: dotnet build -c Release --no-restore
 
-      - name: Publish GitCopy win-x64
-        run: dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o artifacts\gitcopy\win-x64
+      - name: Publish GitCopy win-x64 Native AOT
+        run: dotnet publish -c Release -r win-x64 -o artifacts\gitcopy\win-x64
 
       - name: Install VS Code extension dependencies
         working-directory: vscode-extension
@@ -49,6 +49,14 @@ jobs:
       - name: Package VSIX
         working-directory: vscode-extension
         run: npm run package:vsix -- --out ..\artifacts\gitcopy-vscode.vsix
+
+      - name: Report packaged sizes
+        shell: pwsh
+        run: |
+          $engine = Get-Item artifacts\gitcopy\win-x64\GitCopy.exe
+          $vsix = Get-Item artifacts\gitcopy-vscode.vsix
+          Write-Host ("GitCopy.exe: {0:N2} MB" -f ($engine.Length / 1MB))
+          Write-Host ("gitcopy-vscode.vsix: {0:N2} MB" -f ($vsix.Length / 1MB))
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
