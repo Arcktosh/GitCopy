@@ -1,6 +1,6 @@
 # GitCopy
 
-GitCopy is a small .NET 8 command-line utility for copying a Git working tree to another location while respecting Git ignore rules.
+GitCopy is a .NET 8 repository-copy engine with a Visual Studio Code extension for copying a Git working tree to another location while respecting Git ignore rules.
 
 Rather than implementing `.gitignore` parsing itself, GitCopy asks Git for the effective file set using:
 
@@ -19,13 +19,19 @@ This means GitCopy respects:
 
 The `.git` directory itself is not copied.
 
+## Components
+
+- **GitCopy CLI** - the .NET 8 copy engine.
+- **VS Code extension** - commands, Explorer integration, destination selection, progress, and settings around the same engine.
+
 ## Requirements
 
-- Windows 10/11 or another platform supported by .NET 8
+- Windows 10/11 or another platform supported by .NET 8 for the CLI
 - Git installed and available on `PATH`
-- .NET 8 SDK for building from source
+- .NET 8 SDK for building the CLI from source
+- Node.js 22+ for building or packaging the VS Code extension
 
-## Build
+## Build the CLI
 
 ```powershell
 dotnet build -c Release
@@ -45,7 +51,7 @@ The executable will be produced under:
 bin\Release\net8.0\win-x64\publish\GitCopy.exe
 ```
 
-## Usage
+## CLI usage
 
 ```powershell
 GitCopy <source> <destination> [options]
@@ -78,6 +84,42 @@ Preview the copy:
 ```powershell
 GitCopy C:\Repos\Diamond D:\Copies\Diamond --dry-run
 ```
+
+## Visual Studio Code extension
+
+The extension lives in [`vscode-extension`](vscode-extension) and exposes:
+
+- `GitCopy: Copy Repository`
+- `GitCopy: Copy Repository (Clean Destination)`
+- `GitCopy: Preview Repository Copy`
+- a **GitCopy** submenu when right-clicking folders in the Explorer
+
+For a packaged Windows VSIX, the build publishes the `win-x64` .NET engine and bundles `GitCopy.exe` inside the extension. The extension invokes that executable rather than duplicating `.gitignore` parsing logic in TypeScript.
+
+### Build the extension
+
+```powershell
+cd vscode-extension
+npm install
+npm run compile
+```
+
+### Package a Windows VSIX locally
+
+From the repository root:
+
+```powershell
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o artifacts\gitcopy\win-x64
+New-Item -ItemType Directory -Force vscode-extension\bin | Out-Null
+Copy-Item artifacts\gitcopy\win-x64\GitCopy.exe vscode-extension\bin\GitCopy.exe
+cd vscode-extension
+npm install
+npm run package:vsix -- --out ..\artifacts\gitcopy-vscode.vsix
+```
+
+The GitHub Actions build performs the same process and uploads both the standalone `GitCopy.exe` and packaged VSIX as artifacts.
+
+See [`vscode-extension/README.md`](vscode-extension/README.md) for extension settings and usage.
 
 ## Behavior
 

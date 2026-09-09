@@ -18,11 +18,42 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Restore
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+
+      - name: Restore .NET
         run: dotnet restore
 
-      - name: Build
+      - name: Build .NET
         run: dotnet build -c Release --no-restore
 
-      - name: Publish win-x64
-        run: dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+      - name: Publish GitCopy win-x64
+        run: dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o artifacts\gitcopy\win-x64
+
+      - name: Install VS Code extension dependencies
+        working-directory: vscode-extension
+        run: npm install --no-audit --no-fund
+
+      - name: Compile VS Code extension
+        working-directory: vscode-extension
+        run: npm run compile
+
+      - name: Bundle GitCopy engine
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force vscode-extension\bin | Out-Null
+          Copy-Item artifacts\gitcopy\win-x64\GitCopy.exe vscode-extension\bin\GitCopy.exe
+
+      - name: Package VSIX
+        working-directory: vscode-extension
+        run: npm run package:vsix -- --out ..\artifacts\gitcopy-vscode.vsix
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitcopy-windows
+          path: |
+            artifacts/gitcopy/win-x64/GitCopy.exe
+            artifacts/gitcopy-vscode.vsix

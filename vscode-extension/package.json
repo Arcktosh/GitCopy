@@ -1,0 +1,132 @@
+{
+  "name": "gitcopy",
+  "displayName": "GitCopy",
+  "description": "Copy Git repositories from VS Code while respecting Git ignore rules.",
+  "version": "0.1.0",
+  "publisher": "arcktosh",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Arcktosh/GitCopy.git"
+  },
+  "homepage": "https://github.com/Arcktosh/GitCopy#readme",
+  "bugs": {
+    "url": "https://github.com/Arcktosh/GitCopy/issues"
+  },
+  "engines": {
+    "vscode": "^1.110.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "git",
+    "copy",
+    "repository",
+    "backup",
+    "gitignore"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onCommand:gitCopy.copyRepository",
+    "onCommand:gitCopy.copyRepositoryClean",
+    "onCommand:gitCopy.previewRepositoryCopy",
+    "onCommand:gitCopy.openSettings"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "gitCopy.copyRepository",
+        "title": "Copy Repository",
+        "category": "GitCopy",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "gitCopy.copyRepositoryClean",
+        "title": "Copy Repository (Clean Destination)",
+        "category": "GitCopy",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "gitCopy.previewRepositoryCopy",
+        "title": "Preview Repository Copy",
+        "category": "GitCopy",
+        "icon": "$(preview)"
+      },
+      {
+        "command": "gitCopy.openSettings",
+        "title": "Open Settings",
+        "category": "GitCopy",
+        "icon": "$(settings-gear)"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "gitCopy.explorer",
+        "label": "GitCopy"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "submenu": "gitCopy.explorer",
+          "when": "explorerResourceIsFolder && resourceScheme == file",
+          "group": "7_modification"
+        }
+      ],
+      "gitCopy.explorer": [
+        {
+          "command": "gitCopy.copyRepository",
+          "group": "1_copy@1"
+        },
+        {
+          "command": "gitCopy.previewRepositoryCopy",
+          "group": "1_copy@2"
+        },
+        {
+          "command": "gitCopy.copyRepositoryClean",
+          "group": "2_danger@1"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "GitCopy",
+      "properties": {
+        "gitCopy.executablePath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Optional path to GitCopy.exe. Leave empty to use the executable bundled with the extension, then fall back to GitCopy on PATH."
+        },
+        "gitCopy.defaultDestinationRoot": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Optional default parent directory for repository copies. GitCopy appends the repository folder name to this path. Leave empty to choose a destination each time."
+        },
+        "gitCopy.confirmClean": {
+          "type": "boolean",
+          "default": true,
+          "description": "Require confirmation before a clean copy deletes the existing destination repository folder."
+        },
+        "gitCopy.revealDestination": {
+          "type": "boolean",
+          "default": true,
+          "description": "Reveal the destination folder in Explorer after a successful copy."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile",
+    "package:vsix": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^26.5.0",
+    "@types/vscode": "^1.136.0",
+    "@vscode/vsce": "^3.9.2",
+    "typescript": "^7.0.2"
+  }
+}
