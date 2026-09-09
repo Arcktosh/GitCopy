@@ -94,7 +94,7 @@ internal static class WindowsShellIntegration
         Registry.CurrentUser.DeleteSubKeyTree(DirectoryBackgroundShellKey, throwOnMissingSubKey: false);
 
         Console.WriteLine("GitCopy Windows Explorer context-menu entries removed.");
-        Console.WriteLine("The cached executable under %LOCALAPPDATA%\GitCopy is intentionally left in place and may be deleted manually.");
+        Console.WriteLine("The cached executable under %LOCALAPPDATA%\\GitCopy is intentionally left in place and may be deleted manually.");
 
         return 0;
     }
