@@ -16,16 +16,8 @@
 	"engines": {
 		"vscode": "^1.110.0"
 	},
-	"categories": [
-		"Other"
-	],
-	"keywords": [
-		"git",
-		"copy",
-		"repository",
-		"backup",
-		"gitignore"
-	],
+	"categories": ["Other"],
+	"keywords": ["git", "copy", "repository", "backup", "gitignore"],
 	"main": "./dist/extension.js",
 	"activationEvents": [
 		"onCommand:gitCopy.copyRepository",
