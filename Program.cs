@@ -336,9 +336,9 @@ internal static class Program
               --help, -h   Show this help text
 
             Examples:
-              GitCopy C:\Repos\Diamond D:\Copies\Diamond
-              GitCopy C:\Repos\Diamond D:\Copies\Diamond --clean
-              GitCopy C:\Repos\Diamond D:\Copies\Diamond --dry-run
+              GitCopy C:\Repos\RepoName D:\Copies\RepoName
+              GitCopy C:\Repos\RepoName D:\Copies\RepoName --clean
+              GitCopy C:\Repos\RepoName D:\Copies\RepoName --dry-run
             """);
     }
 

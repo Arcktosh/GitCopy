@@ -79,19 +79,19 @@ GitCopy <source> <destination> [options]
 Copy a repository working tree:
 
 ```powershell
-GitCopy C:\Repos\Diamond D:\Copies\Diamond
+GitCopy C:\Repos\RepoName D:\Copies\RepoName
 ```
 
 Recreate the destination first:
 
 ```powershell
-GitCopy C:\Repos\Diamond D:\Copies\Diamond --clean
+GitCopy C:\Repos\RepoName D:\Copies\RepoName --clean
 ```
 
 Preview the copy:
 
 ```powershell
-GitCopy C:\Repos\Diamond D:\Copies\Diamond --dry-run
+GitCopy C:\Repos\RepoName D:\Copies\RepoName --dry-run
 ```
 
 ## Visual Studio Code extension
