@@ -5,6 +5,7 @@
 	"version": "0.2.0",
 	"publisher": "arcktosh",
 	"license": "MIT",
+	"icon": "images/gitcopy-icon.png",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/Arcktosh/GitCopy.git"
@@ -111,7 +112,7 @@
 				"gitCopy.confirmClean": {
 					"type": "boolean",
 					"default": true,
-					"description": "Require confirmation before a clean copy deletes the existing destination repository folder."
+					"description": "Require confirmation before an existing destination repository folder is deleted by a clean copy."
 				},
 				"gitCopy.revealDestination": {
 					"type": "boolean",
