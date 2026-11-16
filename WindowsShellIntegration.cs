@@ -118,6 +118,80 @@ internal static class WindowsShellIntegration
             RegistryValueKind.String);
     }
 
+    /// <summary>Remember a successfully used parent directory without affecting copy results.</summary>
+    public static void RememberDestinationParent(string destinationParent)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        try
+        {
+            string selectedPath = Path.GetFullPath(destinationParent);
+            if (!Directory.Exists(selectedPath))
+            {
+                return;
+            }
+
+            string historyPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "GitCopy", "recent-destinations.txt");
+            Directory.CreateDirectory(Path.GetDirectoryName(historyPath)!);
+
+            List<string> recent = [selectedPath];
+            if (File.Exists(historyPath))
+            {
+                foreach (string previous in File.ReadAllLines(historyPath))
+                {
+                    if (recent.Count >= 10)
+                    {
+                        break;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(previous) || !Path.IsPathFullyQualified(previous))
+                    {
+                        continue;
+                    }
+
+                    string fullPath;
+                    try
+                    {
+                        fullPath = Path.GetFullPath(previous);
+                    }
+                    catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+                    {
+                        continue;
+                    }
+
+                    if (Directory.Exists(fullPath) && !recent.Contains(fullPath, StringComparer.OrdinalIgnoreCase))
+                    {
+                        recent.Add(fullPath);
+                    }
+                }
+            }
+
+            // Write-then-rename prevents interrupted writes from truncating the history.
+            string temporaryPath = historyPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            try
+            {
+                File.WriteAllLines(temporaryPath, recent, new UTF8Encoding(false));
+                File.Move(temporaryPath, historyPath, overwrite: true);
+            }
+            finally
+            {
+                if (File.Exists(temporaryPath))
+                {
+                    File.Delete(temporaryPath);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            Console.Error.WriteLine($"Warning: Could not save GitCopy destination history: {ex.Message}");
+        }
+    }
+
     private static string ResolveCurrentExecutable()
     {
         string? processPath = Environment.ProcessPath;
@@ -149,9 +223,138 @@ internal static class WindowsShellIntegration
     [SupportedOSPlatform("windows")]
     private static async Task<string?> SelectDestinationParentWindowsAsync()
     {
-        const string script = "$shell = New-Object -ComObject Shell.Application; "
-            + "$folder = $shell.BrowseForFolder(0, 'GitCopy: Select the destination parent folder', 1, 0); "
-            + "if ($null -ne $folder) { [Console]::Out.Write($folder.Self.Path) }";
+        const string script = """
+            Add-Type -AssemblyName System.Windows.Forms
+            Add-Type -AssemblyName System.Drawing
+            [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+            [System.Windows.Forms.Application]::EnableVisualStyles()
+
+            $form = New-Object System.Windows.Forms.Form
+            $form.Text = 'GitCopy - Choose destination folder'
+            $form.ClientSize = [System.Drawing.Size]::new(760, 420)
+            $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+            $form.MaximizeBox = $false
+            $form.MinimizeBox = $false
+            $form.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
+            $form.TopMost = $true
+
+            $intro = New-Object System.Windows.Forms.Label
+            $intro.Text = 'Select a previously used destination parent folder, or browse for a new one.'
+            $intro.AutoSize = $true
+            $intro.Location = [System.Drawing.Point]::new(18, 18)
+            [void]$form.Controls.Add($intro)
+
+            $heading = New-Object System.Windows.Forms.Label
+            $heading.Text = 'Recent destination folders (most recent first)'
+            $heading.AutoSize = $true
+            $heading.Location = [System.Drawing.Point]::new(18, 45)
+            [void]$form.Controls.Add($heading)
+
+            $recentList = New-Object System.Windows.Forms.ListBox
+            $recentList.Location = [System.Drawing.Point]::new(18, 66)
+            $recentList.Size = [System.Drawing.Size]::new(724, 270)
+            $recentList.HorizontalScrollbar = $true
+            [void]$form.Controls.Add($recentList)
+
+            $historyPath = Join-Path (Join-Path $env:LOCALAPPDATA 'GitCopy') 'recent-destinations.txt'
+            if ([System.IO.File]::Exists($historyPath)) {
+                try {
+                    foreach ($folder in [System.IO.File]::ReadAllLines($historyPath)) {
+                        if (-not [string]::IsNullOrWhiteSpace($folder) -and [System.IO.Directory]::Exists($folder)) {
+                            [void]$recentList.Items.Add($folder)
+                        }
+                    }
+                } catch {
+                    # An unreadable history file must not prevent choosing a folder.
+                }
+            }
+
+            $useButton = New-Object System.Windows.Forms.Button
+            $useButton.Text = 'Use selected folder'
+            $useButton.Location = [System.Drawing.Point]::new(18, 357)
+            $useButton.Size = [System.Drawing.Size]::new(165, 32)
+            $useButton.Enabled = $false
+            [void]$form.Controls.Add($useButton)
+
+            $browseButton = New-Object System.Windows.Forms.Button
+            $browseButton.Text = 'Browse...'
+            $browseButton.Location = [System.Drawing.Point]::new(195, 357)
+            $browseButton.Size = [System.Drawing.Size]::new(115, 32)
+            [void]$form.Controls.Add($browseButton)
+
+            $clearButton = New-Object System.Windows.Forms.Button
+            $clearButton.Text = 'Clear history'
+            $clearButton.Location = [System.Drawing.Point]::new(322, 357)
+            $clearButton.Size = [System.Drawing.Size]::new(115, 32)
+            $clearButton.Enabled = $recentList.Items.Count -gt 0
+            [void]$form.Controls.Add($clearButton)
+
+            $cancelButton = New-Object System.Windows.Forms.Button
+            $cancelButton.Text = 'Cancel'
+            $cancelButton.Location = [System.Drawing.Point]::new(627, 357)
+            $cancelButton.Size = [System.Drawing.Size]::new(115, 32)
+            [void]$form.Controls.Add($cancelButton)
+
+            $script:selectedPath = $null
+            $recentList.Add_SelectedIndexChanged({
+                $useButton.Enabled = $null -ne $recentList.SelectedItem
+            })
+            $useButton.Add_Click({
+                if ($null -ne $recentList.SelectedItem) {
+                    $script:selectedPath = [string]$recentList.SelectedItem
+                    $form.DialogResult = [System.Windows.Forms.DialogResult]::OK
+                    $form.Close()
+                }
+            })
+            $recentList.Add_DoubleClick({ $useButton.PerformClick() })
+            $browseButton.Add_Click({
+                $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+                $dialog.Description = 'Select the destination parent folder'
+                $dialog.ShowNewFolderButton = $true
+                if ($null -ne $recentList.SelectedItem) {
+                    $dialog.SelectedPath = [string]$recentList.SelectedItem
+                }
+                try {
+                    if ($dialog.ShowDialog($form) -eq [System.Windows.Forms.DialogResult]::OK) {
+                        $script:selectedPath = $dialog.SelectedPath
+                        $form.DialogResult = [System.Windows.Forms.DialogResult]::OK
+                        $form.Close()
+                    }
+                } finally {
+                    $dialog.Dispose()
+                }
+            })
+            $clearButton.Add_Click({
+                try {
+                    if ([System.IO.File]::Exists($historyPath)) {
+                        [System.IO.File]::Delete($historyPath)
+                    }
+                    $recentList.Items.Clear()
+                    $useButton.Enabled = $false
+                    $clearButton.Enabled = $false
+                } catch {
+                    [void][System.Windows.Forms.MessageBox]::Show(
+                        $_.Exception.Message, 'GitCopy: Unable to clear history',
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Warning)
+                }
+            })
+            $cancelButton.Add_Click({
+                $form.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+                $form.Close()
+            })
+            $form.AcceptButton = $useButton
+            $form.CancelButton = $cancelButton
+
+            try {
+                $result = $form.ShowDialog()
+                if ($result -eq [System.Windows.Forms.DialogResult]::OK -and $script:selectedPath) {
+                    [Console]::Out.Write($script:selectedPath)
+                }
+            } finally {
+                $form.Dispose()
+            }
+            """;
 
         var startInfo = new ProcessStartInfo
         {
