@@ -21,7 +21,7 @@ You can also:
 
 The empty-space command uses the current workspace folder. If the workspace contains multiple folders, GitCopy asks which workspace folder to copy.
 
-When no default destination root is configured, GitCopy asks you to select a parent destination folder and creates the copy under `<destination>/<repository-name>`.
+When no default destination root is configured, GitCopy offers the 10 most recently used destination parent directories in a searchable picker, with options to **Browse for another folder** or **Clear recent destinations**. The repository copy is created under `<destination>/<repository-name>`. Missing directories are omitted from the picker. Only successful copies are recorded; failed or cancelled copies and previews do not change the history. On Windows, the extension shares history with the Explorer context-menu picker in `%LOCALAPPDATA%\\GitCopy\\recent-destinations.txt`. On other platforms, history is stored in VS Code extension global state.
 
 ## Settings
 
