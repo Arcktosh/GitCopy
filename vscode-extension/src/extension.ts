@@ -36,7 +36,7 @@ async function runCopy(context: vscode.ExtensionContext, resource: vscode.Uri | 
             return;
         }
 
-        const destination = await resolveDestination(repositoryRoot);
+        const destination = await resolveDestination(context, repositoryRoot);
         if (!destination) {
             return;
         }
@@ -82,6 +82,7 @@ async function runCopy(context: vscode.ExtensionContext, resource: vscode.Uri | 
                 return;
             }
 
+            await rememberDestination(context, path.dirname(destination));
             vscode.window.showInformationMessage(`GitCopy completed: ${destination}`);
 
             const configuration = vscode.workspace.getConfiguration('gitCopy');
@@ -142,7 +143,96 @@ async function resolveRepositoryRoot(source: string): Promise<string | undefined
     return root.length > 0 ? path.resolve(root) : undefined;
 }
 
-async function resolveDestination(repositoryRoot: string): Promise<string | undefined> {
+const historyKey = 'gitCopy.recentDestinationParents';
+const historyLimit = 10;
+
+function historyFilePath(): string | undefined {
+    if (process.platform !== 'win32') {
+        return undefined;
+    }
+    const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+    return path.join(localAppData, 'GitCopy', 'recent-destinations.txt');
+}
+
+async function recentDestinations(context: vscode.ExtensionContext): Promise<string[]> {
+    const historyPath = historyFilePath();
+    let entries: string[];
+    if (historyPath) {
+        try {
+            entries = (await fs.readFile(historyPath, 'utf8')).split(/\r?\n/);
+        } catch {
+            entries = [];
+        }
+    } else {
+        entries = context.globalState.get<string[]>(historyKey, []);
+    }
+
+    const recent: string[] = [];
+    for (const entry of entries) {
+        if (!entry.trim() || !path.isAbsolute(entry)) {
+            continue;
+        }
+        const resolved = path.resolve(entry.trim());
+        if (recent.some(previous => sameDirectory(previous, resolved))) {
+            continue;
+        }
+        if (await directoryExists(resolved)) {
+            recent.push(resolved);
+        }
+        if (recent.length >= historyLimit) {
+            break;
+        }
+    }
+    return recent;
+}
+
+function sameDirectory(left: string, right: string): boolean {
+    const normalize = (value: string) => path.normalize(value).replace(/[\\/]+$/, '');
+    return process.platform === 'win32'
+        ? normalize(left).toLowerCase() === normalize(right).toLowerCase()
+        : normalize(left) === normalize(right);
+}
+
+async function saveRecentDestinations(context: vscode.ExtensionContext, destinations: string[]): Promise<void> {
+    const historyPath = historyFilePath();
+    if (!historyPath) {
+        await context.globalState.update(historyKey, destinations);
+        return;
+    }
+
+    await fs.mkdir(path.dirname(historyPath), { recursive: true });
+    const tempPath = path.join(path.dirname(historyPath), `recent-destinations-${process.pid}-${Date.now()}.tmp`);
+    try {
+        await fs.writeFile(tempPath, destinations.join('\n') + (destinations.length ? '\n' : ''), 'utf8');
+        try {
+            await fs.rename(tempPath, historyPath);
+        } catch (error) {
+            // Windows rename does not overwrite an existing destination.
+            if ((error as NodeJS.ErrnoException).code !== 'EEXIST' && (error as NodeJS.ErrnoException).code !== 'EPERM') {
+                throw error;
+            }
+            await fs.rm(historyPath, { force: true });
+            await fs.rename(tempPath, historyPath);
+        }
+    } finally {
+        await fs.rm(tempPath, { force: true }).catch(() => {});
+    }
+}
+
+async function rememberDestination(context: vscode.ExtensionContext, destinationParent: string): Promise<void> {
+    try {
+        if (!(await directoryExists(destinationParent))) {
+            return;
+        }
+        const recent = await recentDestinations(context);
+        const updated = [path.resolve(destinationParent), ...recent.filter(folder => !sameDirectory(folder, destinationParent))];
+        await saveRecentDestinations(context, updated.slice(0, historyLimit));
+    } catch (error) {
+        output.appendLine(`Warning: Unable to save recent destination: ${String(error)}`);
+    }
+}
+
+async function resolveDestination(context: vscode.ExtensionContext, repositoryRoot: string): Promise<string | undefined> {
     const configuration = vscode.workspace.getConfiguration('gitCopy');
     const configuredRoot = expandPath(configuration.get<string>('defaultDestinationRoot', '').trim());
     const repositoryName = path.basename(repositoryRoot);
@@ -151,19 +241,59 @@ async function resolveDestination(repositoryRoot: string): Promise<string | unde
         return path.join(configuredRoot, repositoryName);
     }
 
-    const selected = await vscode.window.showOpenDialog({
-        canSelectFiles: false,
-        canSelectFolders: true,
-        canSelectMany: false,
-        openLabel: `Copy ${repositoryName} here`,
-        title: 'GitCopy: Select the parent destination folder'
-    });
+    while (true) {
+        const recent = await recentDestinations(context);
+        const browseLabel = '$(folder-opened) Browse for another folder...';
+        const clearLabel = '$(trash) Clear recent destinations';
+        type DestinationChoice = vscode.QuickPickItem & { destination?: string; action?: 'browse' | 'clear' };
+        const choices: DestinationChoice[] = recent.map((folder, index) => ({
+            label: `$(history) ${path.basename(folder) || folder}`,
+            description: folder,
+            detail: index === 0 ? 'Most recently used' : undefined,
+            destination: folder
+        }));
+        choices.push({ label: browseLabel, action: 'browse' });
+        if (recent.length) {
+            choices.push({ label: clearLabel, action: 'clear' });
+        }
 
-    if (!selected || selected.length === 0) {
-        return undefined;
+        const selected = await vscode.window.showQuickPick(choices, {
+            title: 'GitCopy: Choose destination parent directory',
+            placeHolder: 'Select a recent destination or browse for a new folder',
+            matchOnDescription: true
+        });
+        if (!selected) {
+            return undefined;
+        }
+        if (selected.action === 'clear') {
+            try {
+                await saveRecentDestinations(context, []);
+            } catch (error) {
+                vscode.window.showWarningMessage(`GitCopy: Unable to clear recent destinations: ${String(error)}`);
+            }
+            continue;
+        }
+        if (selected.destination) {
+            if (await directoryExists(selected.destination)) {
+                return path.join(selected.destination, repositoryName);
+            }
+            vscode.window.showWarningMessage('GitCopy: The selected directory no longer exists. Please choose another.');
+            continue;
+        }
+
+        const folders = await vscode.window.showOpenDialog({
+            canSelectFiles: false,
+            canSelectFolders: true,
+            canSelectMany: false,
+            defaultUri: recent.length ? vscode.Uri.file(recent[0]) : undefined,
+            openLabel: `Copy ${repositoryName} here`,
+            title: 'GitCopy: Select the parent destination folder'
+        });
+        if (!folders?.length) {
+            return undefined;
+        }
+        return path.join(folders[0].fsPath, repositoryName);
     }
-
-    return path.join(selected[0].fsPath, repositoryName);
 }
 
 async function confirmClean(destination: string): Promise<boolean> {
