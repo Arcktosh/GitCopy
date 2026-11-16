@@ -117,7 +117,13 @@ internal static class Program
         string repositoryName = new DirectoryInfo(repositoryRoot).Name;
         string destination = Path.Combine(destinationParent, repositoryName);
 
-        return await RunCopy(repositoryRoot, destination, dryRun: false, clean: false);
+        int result = await RunCopy(repositoryRoot, destination, dryRun: false, clean: false);
+        if (result == 0)
+        {
+            WindowsShellIntegration.RememberDestinationParent(destinationParent);
+        }
+
+        return result;
     }
 
     private static async Task<int> RunCopy(string sourceArgument, string destination, bool dryRun, bool clean)
