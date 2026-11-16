@@ -89,7 +89,7 @@ After installation, **Copy with GitCopy...** is available when:
 - right-clicking a folder; or
 - right-clicking empty space inside a folder.
 
-The command opens a destination-folder picker and copies the selected Git repository into `<destination>/<repository-name>`. On Windows 11 the classic shell entry may appear under **Show more options**.
+The command opens a destination-folder picker with the 10 most recently used destination parent folders, **Browse**, and **Clear history**. Successful copies update a local history shared with the VS Code extension on Windows. The picker copies the selected Git repository into `<destination>/<repository-name>`. On Windows 11 the classic shell entry may appear under **Show more options**.
 
 Remove the menu entries with:
 
@@ -112,7 +112,7 @@ The extension lives in [`vscode-extension`](vscode-extension) and exposes:
 
 For a packaged Windows VSIX, the build publishes the optimized `win-x64` Native AOT engine and bundles `GitCopy.exe` inside the extension. The extension invokes that executable rather than duplicating `.gitignore` parsing logic in TypeScript.
 
-### Build the extension
+When no default destination is configured, the VS Code extension offers recent destination parent folders before opening the folder browser. The same Windows history is used by the Explorer picker and the extension. History is stored in `%LOCALAPPDATA%\\GitCopy\\recent-destinations.txt`, is limited to 10 existing directories, and can be cleared from either picker. Copy cancellation, previews, and failed copies do not add destinations to history.\n\n### Build the extension
 
 ```powershell
 cd vscode-extension
