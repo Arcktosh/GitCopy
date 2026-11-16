@@ -70,11 +70,15 @@ GitCopy C:\Repos\RepoName D:\Copies\RepoName --dry-run
 
 ## Windows Explorer integration
 
-On Windows, install the shell integration once:
+**This installs the Windows File Explorer context menu, not the VS Code extension.** It requires the GitCopy executable (`GitCopy.exe`), not a `.vsix` file.
+
+From the repository root, after publishing GitCopy using the VSIX packaging steps below, install the context menu once:
 
 ```powershell
-GitCopy.exe --install-context-menu
+.\artifacts\gitcopy\win-x64\GitCopy.exe --install-context-menu
 ```
+
+If `GitCopy.exe` is already on your `PATH`, you can instead run `GitCopy.exe --install-context-menu`.
 
 GitCopy copies the current executable to:
 
@@ -112,7 +116,9 @@ The extension lives in [`vscode-extension`](vscode-extension) and exposes:
 
 For a packaged Windows VSIX, the build publishes the optimized `win-x64` Native AOT engine and bundles `GitCopy.exe` inside the extension. The extension invokes that executable rather than duplicating `.gitignore` parsing logic in TypeScript.
 
-When no default destination is configured, the VS Code extension offers recent destination parent folders before opening the folder browser. The same Windows history is used by the Explorer picker and the extension. History is stored in `%LOCALAPPDATA%\\GitCopy\\recent-destinations.txt`, is limited to 10 existing directories, and can be cleared from either picker. Copy cancellation, previews, and failed copies do not add destinations to history.\n\n### Build the extension
+When no default destination is configured, the VS Code extension offers recent destination parent folders before opening the folder browser. The same Windows history is used by the Explorer picker and the extension. History is stored in `%LOCALAPPDATA%\GitCopy\recent-destinations.txt`, is limited to 10 existing directories, and can be cleared from either picker. Copy cancellation, previews, and failed copies do not add destinations to history.
+
+### Build the extension
 
 ```powershell
 cd vscode-extension
@@ -134,6 +140,29 @@ npm run package:vsix -- --out ..\artifacts\gitcopy-vscode.vsix
 ```
 
 The VSIX excludes TypeScript source maps and development-only files. GitHub Actions performs the same process, reports the final executable and VSIX sizes, and uploads both artifacts.
+
+### Install the VSIX in Visual Studio Code
+
+**Important:** GitCopy's `.vsix` is a **Visual Studio Code extension**, not a Visual Studio 2022 extension. **Do not double-click the `.vsix` in Windows Explorer.** Windows may launch `VSIXInstaller.exe` for Visual Studio 2022, which cannot install VS Code extensions and will report `NoApplicableSKUsException`.
+
+After completing the packaging commands above (which leave the terminal inside `vscode-extension`), run:
+
+```powershell
+cd ..
+code --install-extension .\artifacts\gitcopy-vscode.vsix --force
+```
+
+The `code` command runs the **Visual Studio Code** CLI. The `--force` option replaces an existing installed version. Verify the installation with:
+
+```powershell
+code --list-extensions --show-versions | Select-String 'arcktosh.git-copy'
+```
+
+Alternatively, in **Visual Studio Code**, open **Extensions** (`Ctrl+Shift+X`), select the **...** menu, choose **Install from VSIX...**, and browse to `artifacts\gitcopy-vscode.vsix`.
+
+Reload VS Code using **Developer: Reload Window** if the new GitCopy commands do not appear immediately.
+
+To enable the separate **Windows Explorer context menu**, also [install the GitCopy executable](#windows-explorer-integration); installing the VSIX does not register the Windows shell menu.
 
 See [`vscode-extension/README.md`](vscode-extension/README.md) for extension settings and usage.
 
